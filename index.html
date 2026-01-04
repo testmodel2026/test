@@ -10,19 +10,29 @@
 </head>
 
 <body style="margin: 0; overflow: hidden;">
+    <div style="position: fixed; top: 10px; left: 10px; z-index: 9999; background-color: white; padding: 10px; border: 2px solid red; font-weight: bold; font-size: 20px;">
+        Ver: 赤い箱大量設置
+    </div>
+
     <a-scene
         vr-mode-ui="enabled: false"
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-        <a-text
-            value="This content will always face you."
-            look-at="[gps-camera]"
-            scale="50 50 50"
-            gps-entity-place="latitude: 35.70198998021054; longitude: 139.82401488294957;"
-        ></a-text>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.701820413676195; longitude: 139.8251889595972;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.7017528612219; longitude: 139.82517188359017;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70185427704282; longitude: 139.82521997890166;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.701922316160896; longitude: 139.82525706149144;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70184775628935; longitude: 139.82555233742298;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70167024047349; longitude: 139.8255789069263;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.7018082449683; longitude: 139.82501176486375;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70181178286458; longitude: 139.82454397295794;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.7017884376202; longitude: 139.82426967703137;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70177309324932; longitude: 139.82400533076586;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70161442852892; longitude: 139.82519357669665;"></a-box>
+        <a-box material="color: red" scale="30 30 30" gps-entity-place="latitude: 35.70164477355623; longitude: 139.8252498567211;"></a-box>
 
-        <a-camera gps-camera rotation-reader> </a-camera>
+        <a-camera gps-camera rotation-reader></a-camera>
     </a-scene>
 </body>
 </html>
