@@ -4,14 +4,12 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Spawn at Location</title>
+    <title>Spawn at Location (Fixed)</title>
 
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-        /* 距離表示パネル */
         #info-panel {
             position: fixed;
             top: 0;
@@ -25,8 +23,6 @@
             z-index: 9999;
             text-align: center;
         }
-        
-        /* 「ここに置く」ボタン */
         #spawn-btn {
             position: fixed;
             bottom: 30px;
@@ -62,14 +58,15 @@
     <a-scene
         vr-mode-ui="enabled: false"
         embedded
-        arjs="sourceType: webcam; debugUIEnabled: false;"
+        arjs="sourceType: webcam; debugUIEnabled: false; videoTexture: true;"
+        renderer="logarithmicDepthBuffer: true;"
     >
         <a-box
             id="target-box"
-            material="color: red"
-            scale="10 10 10"
-            look-at="[gps-camera]"
-            gps-entity-place="latitude: 0; longitude: 0;"
+            material="color: red; side: double;"
+            scale="0.5 0.5 0.5"
+            position="0 0 0"
+            visible="false"
         ></a-box>
 
         <a-camera gps-camera="minDistance: 0; maxDistance: 5000;" rotation-reader></a-camera>
@@ -81,35 +78,46 @@
             const box = document.getElementById('target-box');
             const btn = document.getElementById('spawn-btn');
 
-            // ★ボタンを押した時の処理
             btn.addEventListener('click', () => {
-                btn.textContent = "設置中...";
+                btn.textContent = "座標取得中...";
                 
-                // 現在の座標を取得
+                // highAccuracy: true を追加して精度を上げる
                 navigator.geolocation.getCurrentPosition((position) => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
 
-                    // 箱の座標を「今ここ」に書き換える
+                    // 1. 座標をセット
                     box.setAttribute('gps-entity-place', `latitude: ${lat}; longitude: ${lon};`);
                     
+                    // 2. Y軸(高さ)をカメラの少し下に調整したい場合、position属性で調整可能
+                    // AR.jsの仕様上、gps-entity-placeがつくとpositionはオフセットとして扱われます
+                    box.setAttribute('position', '0 0 0'); 
+                    
+                    // 3. 表示をオンにする
+                    box.setAttribute('visible', 'true');
+
                     btn.textContent = "設置完了！";
                     btn.style.backgroundColor = "blue";
                     
-                    alert(`今の位置に箱を置きました！\n緯度:${lat.toFixed(5)}\n経度:${lon.toFixed(5)}`);
+                    alert(`設置しました！\n緯度:${lat.toFixed(5)}\n経度:${lon.toFixed(5)}\n\n※見えない場合は周囲を見回すか、数歩下がってください。`);
                 }, (err) => {
+                    console.error(err);
                     alert("位置情報が取れませんでした");
+                }, {
+                    enableHighAccuracy: true, // 高精度モード
+                    timeout: 5000,
+                    maximumAge: 0
                 });
             });
 
-            // 距離表示の更新
             box.addEventListener('gps-entity-place-update-position', (event) => {
                 const distInt = Math.round(event.detail.distance);
                 display.innerHTML = `あと ${distInt}m`;
-
-                if(distInt < 20) {
+                
+                // 距離が近すぎる(5m以内)ときは赤文字
+                if(distInt < 5) {
                     display.style.color = "red";
-                    display.innerHTML = `あと ${distInt}m <br>★目の前です！`;
+                    display.innerHTML = `あと ${distInt}m <br>★足元にあります`;
                 } else {
                     display.style.color = "cyan";
                 }
