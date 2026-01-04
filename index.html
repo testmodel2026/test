@@ -4,78 +4,57 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Navigation Full</title>
+    <title>Treasure Hunt AR</title>
 
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-        /* 全体のフォント設定 */
-        body {
-            font-family: sans-serif;
-            margin: 0;
-            overflow: hidden;
-        }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
 
-        /* 画面上部の距離表示パネル */
+        /* 上部の情報パネル */
         #info-panel {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             color: white;
-            font-weight: bold;
             padding: 10px 0;
             z-index: 9999;
             text-align: center;
         }
-
-        /* 「ここに置く」ボタン */
-        #spawn-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 220px;
-            padding: 15px;
-            background-color: #ff0055;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 30px;
-            z-index: 9999;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            transition: all 0.2s;
-        }
-        #spawn-btn:active {
-            background-color: #cc0044;
-            transform: translateX(-50%) translateY(2px);
+        
+        /* ターゲットの色を表示する丸印 */
+        #target-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            margin-right: 5px;
+            vertical-align: middle;
         }
 
-        /* 方向指示矢印のエリア */
+        /* 方向指示矢印 */
         #guide-ui {
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%); /* 画面ど真ん中 */
+            transform: translate(-50%, -50%);
             width: 100%;
             text-align: center;
-            pointer-events: none; /* ボタン操作を邪魔しない */
+            pointer-events: none;
             z-index: 9998;
         }
-        
-        /* 矢印のデザイン */
         .arrow {
             font-size: 60px;
-            color: #ffff00; /* 黄色で見やすく */
+            color: #ffff00;
             text-shadow: 2px 2px 4px #000;
             font-weight: 900;
             animation: blink 1s infinite alternate;
         }
-
         @keyframes blink {
             from { opacity: 0.6; transform: scale(1); }
             to { opacity: 1.0; transform: scale(1.1); }
@@ -86,114 +65,120 @@
 <body>
 
     <div id="info-panel">
-        <span id="distance-display" style="font-size: 20px; color: cyan;">GPS取得待ち...</span><br>
-        <span style="font-size: 12px; color: #ccc;">下のボタンで箱を設置してください</span>
+        <div style="font-size: 14px;">一番近いターゲット:</div>
+        <div style="font-size: 24px; font-weight: bold;">
+            <span id="target-indicator" style="background-color: gray;"></span>
+            <span id="target-name">探索中...</span>
+        </div>
+        <div id="distance-display" style="font-size: 18px; color: cyan;">GPS取得中...</div>
     </div>
 
     <div id="guide-ui"></div>
-
-    <button id="spawn-btn">現在地に箱を置く</button>
 
     <a-scene
         vr-mode-ui="enabled: false"
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-        <a-box
-            id="target-box"
-            material="color: red; opacity: 0.8; transparent: true;"
-            scale="1 1 1"
-            look-at="[gps-camera]"
-            gps-entity-place="latitude: 0; longitude: 0;"
-        ></a-box>
-
         <a-camera gps-camera="minDistance: 0; maxDistance: 5000;" rotation-reader></a-camera>
     </a-scene>
 
     <script>
+        // ■ 指定された座標と色のリスト
+        const targetData = [
+            { lat: 35.70178630849327, lon: 139.82401544884175, color: 'red', name: '赤色' },
+            { lat: 35.701758175931246, lon: 139.8236600716402, color: 'yellow', name: '黄色' },
+            { lat: 35.70174146142711, lon: 139.82337052797118, color: 'blue', name: '青色' },
+            { lat: 35.701554486699166, lon: 139.82338933294176, color: 'hotpink', name: 'ピンク' }, // pinkは薄いのでhotpinkに
+            { lat: 35.70154550306454, lon: 139.82362449646504, color: '#8B4513', name: '茶色' }
+        ];
+
         window.addEventListener('load', () => {
-            const display = document.getElementById('distance-display');
-            const box = document.getElementById('target-box');
-            const btn = document.getElementById('spawn-btn');
-            const guideDiv = document.getElementById('guide-ui');
+            const scene = document.querySelector('a-scene');
             const camera = document.querySelector('a-camera');
+            const displayDist = document.getElementById('distance-display');
+            const displayName = document.getElementById('target-name');
+            const displayIndicator = document.getElementById('target-indicator');
+            const guideDiv = document.getElementById('guide-ui');
 
-            // ■ ボタンを押した時の処理（設置）
-            btn.addEventListener('click', () => {
-                btn.textContent = "設置中...";
+            // 箱（エンティティ）を格納する配列
+            let boxes = [];
+
+            // 1. リストの座標に箱を生成して配置
+            targetData.forEach((data) => {
+                const box = document.createElement('a-box');
+                box.setAttribute('scale', '2 2 2'); // 2mサイズで見やすく
+                box.setAttribute('material', `color: ${data.color}; opacity: 0.9;`);
+                box.setAttribute('gps-entity-place', `latitude: ${data.lat}; longitude: ${data.lon};`);
+                box.setAttribute('look-at', '[gps-camera]'); // 常にこちらを向く
                 
-                // 現在地を取得
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
+                // 独自プロパティとしてデータを保持させておく
+                box.dataset.name = data.name;
+                box.dataset.color = data.color;
 
-                    // 【工夫】現在地そのままではなく「北に約2m」ずらす
-                    // 0.00002度 ≒ 約2.2m (日本付近)
-                    // これにより「自分と重なって見えない」を防ぎます
-                    const newLat = lat + 0.00002; 
-
-                    // 箱の座標更新
-                    box.setAttribute('gps-entity-place', `latitude: ${newLat}; longitude: ${lon};`);
-                    
-                    btn.textContent = "再設置する";
-                    btn.style.backgroundColor = "#444";
-                    
-                    alert(`現在地から北に約2mの位置に箱を置きました。\n探してみてください！`);
-                }, (err) => {
-                    alert("位置情報が取れませんでした。\n設定を確認してください。");
-                }, {
-                    enableHighAccuracy: true // 高精度モード
-                });
+                scene.appendChild(box);
+                boxes.push(box);
             });
 
-            // ■ 距離イベントの処理（AR.jsの機能）
-            box.addEventListener('gps-entity-place-update-position', (event) => {
-                const distInt = Math.round(event.detail.distance);
-                
-                if(distInt < 5) {
-                    display.innerHTML = `距離: ${distInt}m <br><span style="color:red; font-size:24px;">★ここです！</span>`;
-                    display.style.color = "red";
-                } else {
-                    display.innerHTML = `あと ${distInt}m`;
-                    display.style.color = "cyan";
-                }
-            });
-
-            // ■ 方向アシスト機能（0.2秒ごとに計算）
+            // 2. 常時監視ループ（0.2秒ごとに実行）
             setInterval(() => {
-                // カメラと箱の準備ができていなければ何もしない
-                if (!box || !camera) return;
+                if (!camera) return;
 
-                const cameraObj = camera.object3D;
-                const boxObj = box.object3D;
+                let minDistance = Infinity;
+                let closestBox = null;
 
-                // 箱の世界座標をコピー
-                const targetPos = boxObj.position.clone();
-                
-                // カメラから見た相対座標に変換
-                // (これで x:右左, z:前後 がわかります)
-                cameraObj.worldToLocal(targetPos);
+                const cameraPos = camera.object3D.position;
 
-                let msg = "";
+                // 全部の箱との距離を計算して、一番近いものを探す
+                boxes.forEach((box) => {
+                    const boxPos = box.object3D.position;
+                    
+                    // A-Frame上の3D距離を計算 (GPS座標変換後の位置)
+                    const distance = cameraPos.distanceTo(boxPos);
 
-                // 距離が近すぎる(5m以内)かつ、視界に入っているなら矢印を出さない
-                // targetPos.z < 0 は「前方」
-                if (targetPos.z < 0 && Math.abs(targetPos.x) < 2 && targetPos.z > -5) {
-                    msg = ""; // 目の前にあるので案内なし
-                } else {
-                    // 方向判定
-                    if (targetPos.z > 0) {
-                        msg = "<div class='arrow'>⬇ 後ろ！</div>";
-                    } else if (targetPos.x > 0) {
-                        msg = "<div class='arrow'>➡ 右</div>";
-                    } else {
-                        msg = "<div class='arrow'>⬅ 左</div>";
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestBox = box;
                     }
+                });
+
+                // 一番近い箱が見つかったら情報を更新
+                if (closestBox) {
+                    const distInt = Math.round(minDistance);
+                    
+                    // 画面表示更新
+                    displayName.textContent = closestBox.dataset.name;
+                    displayName.style.color = closestBox.dataset.color === 'yellow' ? '#ffff00' : 'white';
+                    displayIndicator.style.backgroundColor = closestBox.dataset.color;
+                    
+                    if (distInt < 5) {
+                        displayDist.innerHTML = `<span style="color:red; font-size:24px;">★ここです！</span> (${distInt}m)`;
+                    } else {
+                        displayDist.innerHTML = `あと ${distInt}m`;
+                    }
+
+                    // 矢印ナビゲーションの計算
+                    // 選ばれた「一番近い箱」に対して方向を計算する
+                    const targetPos = closestBox.object3D.position.clone();
+                    camera.object3D.worldToLocal(targetPos);
+
+                    let msg = "";
+                    // 距離がある程度離れていて(2m以上)、視界に入っていない場合に矢印を出す
+                    if (targetPos.z < 0 && Math.abs(targetPos.x) < 3 && distInt < 100) {
+                        msg = ""; // 目の前にある
+                    } else {
+                        if (targetPos.z > 0) {
+                            msg = "<div class='arrow'>⬇ 後ろ！</div>";
+                        } else if (targetPos.x > 0) {
+                            msg = "<div class='arrow'>➡ 右</div>";
+                        } else {
+                            msg = "<div class='arrow'>⬅ 左</div>";
+                        }
+                    }
+                    guideDiv.innerHTML = msg;
                 }
 
-                guideDiv.innerHTML = msg;
-
-            }, 200); // 更新頻度
+            }, 200);
         });
     </script>
 </body>
